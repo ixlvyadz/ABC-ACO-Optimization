@@ -6,20 +6,20 @@ import time
 # -------------------------
 # Core Utility Functions
 # -------------------------
-def create_intersections(num_intersections=100):
-    """Create a set of intersections with random coordinates and labels."""
-    intersections = np.random.uniform(0, 100, size=(num_intersections, 2))
-    labels = [f'Intersection {i+1}' for i in range(num_intersections)]
-    return intersections, labels
+def create_node(num_node=100):
+    """Create a set of node with random coordinates and labels."""
+    node = np.random.uniform(0, 100, size=(num_node, 2))
+    labels = [f'N {i+1}' for i in range(num_node)]
+    return node, labels
 
-def compute_distance_matrix(intersections, peak_hour=False, event_traffic=False):
+def compute_distance_matrix(node, peak_hour=False, event_traffic=False):
     """Compute the pairwise distance matrix considering traffic conditions."""
-    n = len(intersections)
+    n = len(node)
     dist_matrix = np.zeros((n, n))
 
     for i in range(n):
         for j in range(n):
-            base_distance = np.linalg.norm(intersections[i] - intersections[j])
+            base_distance = np.linalg.norm(node[i] - node[j])
             traffic_factor = 1.0
 
             if peak_hour:
@@ -44,16 +44,20 @@ def compute_path_length(path, dist_matrix):
 NODE_COLOR_FINAL = '#006400'
 NODE_SIZE_FINAL = 60
 
-def visualize_single_route(intersections, labels, best_path=None, path_length=None, title="Route Visualization"):
+def visualize_single_route(node, labels, best_path=None, path_length=None, title="Route Visualization"):
     plt.style.use('default')
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.set_facecolor('#F9F9F9')
     ax.tick_params(axis='both', which='both', length=0)
 
+    for i, label in enumerate(labels):
+        plt.text(node[i, 0], node[i, 1], label, fontsize=8, ha='right')
+
+
     # Draw the Best Path (Route)
     if best_path is not None:
-        path_x = intersections[best_path, 0]
-        path_y = intersections[best_path, 1]
+        path_x = node[best_path, 0]
+        path_y = node[best_path, 1]
 
         ax.plot(path_x, path_y,
                 color='#006B9A',
@@ -65,12 +69,12 @@ def visualize_single_route(intersections, labels, best_path=None, path_length=No
 
         # Highlight Start/End Point (Depot)
         start_node_index = best_path[0]
-        ax.scatter(intersections[start_node_index, 0], intersections[start_node_index, 1],
+        ax.scatter(node[start_node_index, 0], node[start_node_index, 1],
                    color='#FF3B30', s=250, zorder=4, marker='*', edgecolor='white', linewidth=2,
                    label='Depot (Start/End)')
 
-    # Draw all Intersections (Nodes) - Layered on top
-    ax.scatter(intersections[:, 0], intersections[:, 1],
+    # Draw all node (Nodes) - Layered on top
+    ax.scatter(node[:, 0], node[:, 1],
                color=NODE_COLOR_FINAL,
                s=NODE_SIZE_FINAL,
                alpha=1.0,
@@ -95,6 +99,7 @@ def visualize_comparison_side_by_side(nodes, labels, path1, len1, title1, path2,
     plt.style.use('default')
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
 
+        
     # Common styling for both subplots
     for ax in [ax1, ax2]:
         ax.set_facecolor('#F9F9F9')
@@ -120,7 +125,7 @@ def visualize_comparison_side_by_side(nodes, labels, path1, len1, title1, path2,
             ax.scatter(nodes[start_node_index, 0], nodes[start_node_index, 1],
                        color='#FF3B30', s=250, zorder=4, marker='*', edgecolor='white', linewidth=2, label='Depot')
 
-        # Draw Intersections (Nodes) on top
+        # Draw node (Nodes) on top
         ax.scatter(nodes[:, 0], nodes[:, 1],
                    color=NODE_COLOR_FINAL,
                    s=NODE_SIZE_FINAL,
@@ -128,6 +133,8 @@ def visualize_comparison_side_by_side(nodes, labels, path1, len1, title1, path2,
                    edgecolor=NODE_COLOR_FINAL,
                    linewidth=0.5,
                    zorder=3, label='Intersection')
+        
+        
 
     # Set titles and legends for each subplot
     ax1.set_title(f"{title1}\nBest Length: {len1:.2f}", fontsize=18, fontweight='bold', color='#333333')
@@ -195,9 +202,9 @@ def apply_abc(elite_solutions, dist_matrix, onlooker_count=10, limit=10):
 
     return [(population[i], fitness[i]) for i in range(len(population))]
 
-def ant_colony_optimization_engine(intersections, dist_matrix, n_ants, n_iterations, Q, rho, alpha, beta, elite_k):
+def ant_colony_optimization_engine(node, dist_matrix, n_ants, n_iterations, Q, rho, alpha, beta, elite_k):
     """Generic ACO Engine."""
-    n = len(intersections)
+    n = len(node)
     pheromone_matrix = np.ones_like(dist_matrix) + 1e-6
     best_path, best_path_length = None, float('inf')
 
@@ -256,7 +263,7 @@ def ant_colony_optimization_engine(intersections, dist_matrix, n_ants, n_iterati
 # -------------------------
 # Configuration Wrappers (The Interface)
 # -------------------------
-def run_baseline_aco(intersections, dist_matrix):
+def run_baseline_aco(node, dist_matrix):
     """Runs Standard ACO with predefined settings."""
     # Configuration
     params = {
@@ -270,11 +277,11 @@ def run_baseline_aco(intersections, dist_matrix):
     }
     
     start = time.time()
-    path, length = ant_colony_optimization_engine(intersections, dist_matrix, **params)
+    path, length = ant_colony_optimization_engine(node, dist_matrix, **params)
     duration = time.time() - start
     return path, length, duration
 
-def run_hybrid_aco(intersections, dist_matrix):
+def run_hybrid_aco(node, dist_matrix):
     """Runs Hybrid ACO+ABC with tuned settings."""
     # Configuration
     params = {
@@ -288,7 +295,7 @@ def run_hybrid_aco(intersections, dist_matrix):
     }
     
     start = time.time()
-    path, length = ant_colony_optimization_engine(intersections, dist_matrix, **params)
+    path, length = ant_colony_optimization_engine(node, dist_matrix, **params)
     duration = time.time() - start
     return path, length, duration
 
@@ -297,46 +304,87 @@ def run_hybrid_aco(intersections, dist_matrix):
 # -------------------------
 if __name__ == "__main__":
     
-    # 1. Setup Environment
-    N_NODES = 100
-    SEED = 48
-    
-    print(f"🚀 Running Comparison: {N_NODES} Intersections (Seed: {SEED})\n")
+    # Global Seed based on time (Changes every run)
+    SEED= int(time.time())
 
-    # 2. Run Baseline
+    # ==========================================
+    # TEST 1: 100 NODES (Fast Check)
+    # ==========================================
+    N_NODES_1 = 100
+    
+    print(f"🚀 Running Comparison: {N_NODES_1} node (Seed: {SEED})\n")
+
+    # --- 1A. Baseline (100 Nodes) ---
     print("1. Running Baseline ACO...")
     random.seed(SEED)
     np.random.seed(SEED)
-    nodes, labels = create_intersections(N_NODES)
+    nodes, labels = create_node(N_NODES_1)
     dists = compute_distance_matrix(nodes, peak_hour=True)
     
-    path_base, len_base, time_base = run_baseline_aco(nodes, dists)
+    path_base_1, len_base_1, time_base_1 = run_baseline_aco(nodes, dists)
     
-    # 3. Run Hybrid (Strict Reset)
-    print("2. Running Hybrid ACO+ABC...")
-    random.seed(SEED) # Reset RNG for fairness
+    # --- 1B. Hybrid (100 Nodes - Strict Reset) ---
+    print("\n2. Running Hybrid ACO+ABC...")
+    random.seed(SEED) 
     np.random.seed(SEED)
-    nodes, labels = create_intersections(N_NODES)
+    nodes, labels = create_node(N_NODES_1)
     dists = compute_distance_matrix(nodes, peak_hour=True)
     
-    path_hyb, len_hyb, time_hyb = run_hybrid_aco(nodes, dists)
+    path_hyb_1, len_hyb_1, time_hyb_1 = run_hybrid_aco(nodes, dists)
 
-    # 4. Results
+    # --- Results 1 ---
     print("\n" + "="*45)
+    print(f"          RESULTS: {N_NODES_1} node")
+    print("-" * 45)
     print(f"{'Algorithm':<20} | {'Length':<10} | {'Time (s)':<10}")
     print("-" * 45)
-    print(f"{'ACO Only':<20} | {len_base:<10.4f} | {time_base:<10.2f}")
-    print(f"{'Hybrid ACO+ABC':<20} | {len_hyb:<10.4f} | {time_hyb:<10.2f}")
+    print(f"{'ACO Only':<20} | {len_base_1:<10.4f} | {time_base_1:<10.2f}")
+    print(f"{'Hybrid ACO+ABC':<20} | {len_hyb_1:<10.4f} | {time_hyb_1:<10.2f}")
     print("="*45 + "\n")
 
-    # 5. Visualize
-    visualize_single_route(nodes, labels, path_base, len_base, "Baseline ACO Result")
+    # Visuals for 100 Nodes
+    visualize_single_route(nodes, labels, path_base_1, len_base_1, f"Baseline ACO ({N_NODES_1} Nodes)")
+    visualize_single_route(nodes, labels, path_hyb_1, len_hyb_1, f"Hybrid ACO ({N_NODES_1} Nodes)")
+    visualize_comparison_side_by_side(nodes, labels, path_base_1, len_base_1, "Baseline",
+                                      path_hyb_1, len_hyb_1, "Hybrid")
 
-    # Image 2: Hybrid ACO+ABC (Individual Plot)
-    visualize_single_route(nodes, labels, path_hyb, len_hyb, "Hybrid ACO+ABC Result")
 
-    print("\n--- Generating Side-by-Side Comparison Plot (Node Size 60, Dark Grey, Pop-Up Display) ---")
+    # # ==========================================
+    # # TEST 2: 500 NODES (Stress Test)
+    # # ==========================================
+    # N_NODES_2 = 300
+    
+    # print(f"\n\n🚀 Running Comparison: {N_NODES_2} node (Seed: {SEED})")
 
-    # Image 3: Side-by-Side Comparison
-    visualize_comparison_side_by_side(nodes, labels, path_base, len_base, "Baseline ACO",
-                                      path_hyb, len_hyb, "Hybrid ACO+ABC")
+    # # --- 2A. Baseline (300 Nodes) ---
+    # print("1. Running Baseline ACO...")
+    # random.seed(SEED)
+    # np.random.seed(SEED)
+    # nodes_500, labels_500 = create_node(N_NODES_2)
+    # dists_500 = compute_distance_matrix(nodes_500, peak_hour=True)
+    
+    # path_base_2, len_base_2, time_base_2 = run_baseline_aco(nodes_500, dists_500)
+    
+    # # --- 2B. Hybrid (300 Nodes - Strict Reset) ---
+    # print("2. Running Hybrid ACO+ABC...")
+    # random.seed(SEED)
+    # np.random.seed(SEED)
+    # nodes_500, labels_500 = create_node(N_NODES_2)
+    # dists_500 = compute_distance_matrix(nodes_500, peak_hour=True)
+    
+    # path_hyb_2, len_hyb_2, time_hyb_2 = run_hybrid_aco(nodes_500, dists_500)
+
+    # # --- Results 2 ---
+    # print("\n" + "="*45)
+    # print(f"RESULTS: {N_NODES_2} node")
+    # print("-" * 45)
+    # print(f"{'Algorithm':<20} | {'Length':<10} | {'Time (s)':<10}")
+    # print("-" * 45)
+    # print(f"{'ACO Only':<20} | {len_base_2:<10.4f} | {time_base_2:<10.2f}")
+    # print(f"{'Hybrid ACO+ABC':<20} | {len_hyb_2:<10.4f} | {time_hyb_2:<10.2f}")
+    # print("="*45 + "\n")
+
+    # # Visuals for 500 Nodes (Side-by-Side is best for large maps)
+    # visualize_comparison_side_by_side(nodes_500, labels_500, 
+    #                                   path_base_2, len_base_2, f"Baseline ({N_NODES_2})",
+    #                                   path_hyb_2, len_hyb_2, f"Hybrid ({N_NODES_2})")
